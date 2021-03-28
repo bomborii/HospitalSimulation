@@ -1,0 +1,560 @@
+//Joshua To
+//November 23, 2017
+//This program is a hospital simulation that simulates patients in a 
+//hospital. Each patient has a disease, and they eventually die or get cured.
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+
+namespace HospitalAssignment
+{
+    public partial class Form1 : Form
+    {
+
+        //keeps track of the simulation run time
+        int timer = 0;
+
+        /*<<<<<<<< RANDOM NUMBER GENERATOR <<<<<*/
+        // random number
+        int randomNumber;
+        // random number generator
+        Random numberGenerator = new Random();
+        /*>>>>>>>>*/
+
+        /*<<<<<<<< NUMBER OF BEDS <<<<<*/
+        //minimum and maximum number of beds
+        const int MINIMUM_BEDS = 5;
+        const int MAXIMUM_BEDS = 15;
+        //stores user-inputted number of beds
+        int numberOfBeds = 0;
+        /*>>>>>>>>>*/
+
+        /*<<<<<< AFFLICTIONS <<<*/
+        //stores the number of afflictions
+        const int NUMBER_OF_AFFLICTIONS = 6;
+
+        //string array to store 6 afflictions names
+        string[] afflictions = new string[NUMBER_OF_AFFLICTIONS];
+
+        //array to store the death rates of the afflictions
+        int[] deathRate = new int[NUMBER_OF_AFFLICTIONS];
+        //array to store the cure rates of the afflictions
+        int[] cureRate = new int[NUMBER_OF_AFFLICTIONS];
+
+        //array to store the number of patients cured from each affliction
+        int[] patientsCured = new int[NUMBER_OF_AFFLICTIONS];
+        //array to store the number of patients dead from each affliction
+        int[] patientDeaths = new int[NUMBER_OF_AFFLICTIONS];
+        //array to store the number of patients still afflicted from each disease
+        int[] patientsAfflicted = new int[NUMBER_OF_AFFLICTIONS];
+        //array to store the counter which determines if the cure rates and death rates change
+        int[] patientsCuredCounter = new int[NUMBER_OF_AFFLICTIONS];
+
+        //stores the most and least numerous afflictions
+        int mostNumerousAffliction;
+        int leastNumerousAffliction;
+        /*>>>>>>>>>*/
+
+        /*<<<<< HOSPITAL STATUS <<<<<<<<*/
+        //keeps track of the current number of patients
+        int numberOfPatients = 0;
+
+        //stores which patient needs to removed when a patient dies/gets cured
+        int removePatient;
+
+        //stores what affliction each patient has
+        int[] patientAfflictions;
+        /* >>>>>>>>>>*/
+
+        /*<<<<<<< GENDER <<<<<<*/
+        //stores the patients' genders
+        string[] patientsGender;
+        
+        //constants representing gender
+        const int MALE = 0;
+        const int FEMALE = 1;
+        /*>>>>>>>>>>>>*/
+
+        /*<<<<< GAME STATE VARIABLES <<<<<<<<*/
+        int gameState = GAME_NOT_STARTED;
+        const int GAME_NOT_STARTED = 0;
+        const int GAME_RUNNING = 1;
+        /* >>>>>>>>>>*/
+
+        /*<<<<< BEDS GRAPHICS <<<<<<<<*/
+        Point[] bedsLocations;
+        Size bedSize;
+        Rectangle[] bedsBoundaries;
+
+        //coordinates of the first bed
+        int initialBedX = 30;
+        int initialBedY = 30;
+
+        //bed dimensions
+        const int BED_WIDTH = 50;
+        const int BED_HEIGHT = 80;
+        /* >>>>>>>>>>*/
+
+        /*<<<<< PATIENTS GRAPHICS <<<<<<<<*/
+        Point[] patientsLocations;
+        Rectangle[] patientsBoundaries;
+        /* >>>>>>>>>>*/
+        
+       
+        public Form1()
+        {
+            InitializeComponent();
+            
+
+            //set up the afflictions arrays
+            SetupAfflictions();
+        }
+        //set up the afflictions names, death rates, cure rates, and
+        //do nothing rates
+        void SetupAfflictions()
+        {
+            afflictions[0] = "Colon Cancer";
+            deathRate[0] = 25;
+            cureRate[0] = 5;
+
+            afflictions[1] = "Avian Flu";
+            deathRate[1] = 20;
+            cureRate[1] = 10;
+
+            afflictions[2] = "Influenza";
+            deathRate[2] = 15;
+            cureRate[2] = 15;
+
+            afflictions[3] = "Ebola";
+            deathRate[3] = 10;
+            cureRate[3] = 20;
+
+            afflictions[4] = "Zika";
+            deathRate[4] = 5;
+            cureRate[4] = 25;
+
+            afflictions[5] = "Spanish Flu";
+            deathRate[5] = 10;
+            cureRate[5] = 30;
+
+        }
+        //adds one patient to the hospital, including gender and affliction
+        void AddPatient()
+        {
+
+            //temporary arrays to store the patient information
+            Point[] tempPatientsLocations = new Point[numberOfBeds];
+            Rectangle[] tempPatientsBoundaries = new Rectangle[numberOfBeds];
+            string[] tempPatientsGender = new string[numberOfBeds];
+            int[] tempPatientAfflictions = new int[numberOfBeds];
+
+            //copy all the values of the patient arrays into the temporary arrays
+            for (int i = 0; i < patientsLocations.Length; i++)
+            {
+                tempPatientsLocations[i] = patientsLocations[i];
+                tempPatientsBoundaries[i] = patientsBoundaries[i];
+                tempPatientsGender[i] = patientsGender[i];
+                tempPatientAfflictions[i] = patientAfflictions[i];
+            }
+
+            //resize the original patient arrays to the new number of beds
+            patientsLocations = new Point[numberOfBeds];
+            patientsBoundaries = new Rectangle[numberOfBeds];
+            patientsGender = new string[numberOfBeds];
+            patientAfflictions = new int[numberOfBeds];
+
+            //copy all the information stored in the temporary arrays back into the original arrays
+            for (int i = 0; i < numberOfBeds; i++)
+            {
+                patientsLocations[i] = tempPatientsLocations[i];
+                patientsBoundaries[i] = tempPatientsBoundaries[i];
+                patientsGender[i] = tempPatientsGender[i];
+                patientAfflictions[i] = tempPatientAfflictions[i];
+            }
+            //adds a patient if there are less patients than beds
+            if (numberOfPatients < numberOfBeds)
+            {
+                //increase number of patients by one
+                numberOfPatients++;                
+
+                randomNumber = numberGenerator.Next(MALE, FEMALE + 1);
+                //if the random number generator chooses male, the newest patient added will be male
+                if (randomNumber == MALE)
+                {
+                    patientsGender[numberOfPatients - 1] = "MALE";
+                }
+                //if the random number generator chooses female, the newest patient added will be female
+                else if (randomNumber == FEMALE)
+                {
+                    patientsGender[numberOfPatients - 1] = "FEMALE";
+                }
+                //assign the newest patient an affliction
+                randomNumber = numberGenerator.Next(0, afflictions.Length);
+                patientAfflictions[numberOfPatients - 1] = randomNumber;
+                //increase the number of patients afflicted by that disease by 1
+                patientsAfflicted[randomNumber]++;
+            }
+            
+
+        }
+        //removes one patient from the hospital and shifts all the patients right of the removed patient
+        //1 to the left
+        void RemovePatient()
+        {
+            //temporary arrays to store all the patients' information
+            Point[] tempPatientsLocations = new Point[numberOfBeds];
+            Rectangle[] tempPatientsBoundaries = new Rectangle[numberOfBeds];
+            string[] tempPatientsGender = new string[numberOfPatients];
+            int[] tempPatientAfflictions = new int[numberOfPatients];
+
+            //copies every patient's data into the temporary arrays
+            for (int i = 0; i < numberOfPatients; i++)
+            {
+                tempPatientsLocations[i] = patientsLocations[i];
+                tempPatientsBoundaries[i] = patientsBoundaries[i];
+                tempPatientsGender[i] = patientsGender[i];
+                tempPatientAfflictions[i] = patientAfflictions[i];
+            }
+            //decrease the number of patients in the hospital by one
+            numberOfPatients--;
+            //resize the original arrays to the new number of patients
+            patientsLocations = new Point[numberOfPatients];
+            patientsBoundaries = new Rectangle[numberOfPatients];
+            patientsGender = new string[numberOfPatients];
+            patientAfflictions = new int[numberOfPatients];
+
+            //copies back the patient data to every patient before the one that was removed
+            for (int i = 0; i < removePatient; i++)
+            {
+                patientsLocations[i] = tempPatientsLocations[i];
+                patientsBoundaries[i] = tempPatientsBoundaries[i];
+                patientsGender[i] = tempPatientsGender[i];
+                patientAfflictions[i] = tempPatientAfflictions[i];
+            }
+            //copies back the patient data to every patient before the one that was removed
+            //and also shifts them over to the left to close the gap that the removed patient left
+            for (int i = removePatient; i < numberOfPatients; i++)
+            {
+                patientsLocations[i] = tempPatientsLocations[i + 1];
+                patientsBoundaries[i] = tempPatientsBoundaries[i + 1];
+                patientsGender[i] = tempPatientsGender[i + 1];
+                patientAfflictions[i] = tempPatientAfflictions[i + 1];
+            }
+        }
+        private void lblConfirmBeds_Click(object sender, EventArgs e)
+        {
+            //convert the inputted string from the text box into a variable
+            int.TryParse(txtNumberOfBeds.Text, out numberOfBeds);
+            //declare the length of the patientsGender array
+            patientsGender = new string[numberOfBeds];
+            //declare the length of the patientsAfflictions array
+            patientAfflictions = new int[numberOfBeds];
+            //if the number inputted is between 5 and 15, start the game and hide the user interface
+            if (numberOfBeds <= MAXIMUM_BEDS && numberOfBeds >= MINIMUM_BEDS)
+            {
+                gameState = GAME_RUNNING;
+
+                txtNumberOfBeds.Hide();
+
+                lblConfirmBeds.Hide();
+                lblInstructions.Hide();
+
+                //set the length of the beds graphics arrays to current number of beds
+                bedsLocations = new Point[numberOfBeds];
+                bedsBoundaries = new Rectangle[numberOfBeds];
+
+                //set the length of the patients graphics arrays to current number of beds
+                patientsLocations = new Point[numberOfBeds];
+                patientsBoundaries = new Rectangle[numberOfBeds];
+            }
+        }
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            
+            //paint all text and graphics if the game is running
+            if (gameState == GAME_RUNNING)
+            {                
+                base.OnPaint(e);
+                
+                //count through each bed until the last
+                for (int i = 0; i < numberOfBeds; i++)
+                {
+                    //declare the bed dimensions
+                    bedSize = new Size(BED_WIDTH, BED_HEIGHT);
+
+                    //set the location of the first bed and the boundary for all beds
+                    bedsLocations[i] = new Point(initialBedX, initialBedY);
+                    bedsBoundaries[i] = new Rectangle(bedsLocations[i], bedSize);
+                    
+
+                    //if the index of the current bed is any number but zero, move the bed 100 right of the previous bed;
+                    //update the boundary box
+                    if (i != 0)
+                    {
+                        bedsLocations[i].X = bedsLocations[i - 1].X + 120;
+                        bedsBoundaries[i] = new Rectangle(bedsLocations[i], bedSize);
+                    }
+                    //if the index reaches #10, start a new row of beds by changing the location of the beds with index 10+
+                    if (i >= 10)
+                    {
+                        bedsLocations[i] = new Point(initialBedX, initialBedY + bedSize.Height + 50);
+                        bedsBoundaries[i] = new Rectangle(bedsLocations[i], bedSize);
+                        if (i != 10)
+                        {
+                            bedsLocations[i].X = bedsLocations[i - 1].X + 120;
+                            bedsBoundaries[i] = new Rectangle(bedsLocations[i], bedSize);
+                        }
+                    }
+                    //draw the beds 
+                    e.Graphics.DrawImage(Properties.Resources.bed, bedsBoundaries[i]);
+                }
+                //count through each patient until the last
+                for (int i = 0; i < numberOfPatients; i++)
+                {
+                    //make the location of the first patient the location of the first bed
+                    patientsLocations[i] = new Point(initialBedX, initialBedY);
+                    //the patient's boundary will use the patient's location and the same size as the bed
+                    patientsBoundaries[i] = new Rectangle(patientsLocations[i], bedSize);
+                    
+                    //if the patient is not the first, each patient will be shifted 100 right of the previous patient
+                    if (i != 0)
+                    {
+                        patientsLocations[i].X = patientsLocations[i - 1].X + 120;
+                        patientsBoundaries[i] = new Rectangle(patientsLocations[i], bedSize);
+                    }
+                    //if the index reaches #10, start a new row of patients by changing the location of the beds with index 10+
+                    if (i >= 10)
+                    {
+                        patientsLocations[i] = new Point(initialBedX, initialBedY + bedSize.Height + 50);
+                        patientsBoundaries[i] = new Rectangle(bedsLocations[i], bedSize);
+                        if (i != 10)
+                        {
+                            bedsLocations[i].X = bedsLocations[i - 1].X + 120;
+                            bedsBoundaries[i] = new Rectangle(bedsLocations[i], bedSize);
+                        }
+                    }
+                    //draw the patients according to their gender
+                    if (patientsGender[i] == "MALE")
+                    {
+                        e.Graphics.DrawImage(Properties.Resources.male, patientsBoundaries[i]);
+                    }
+                    else if (patientsGender[i] == "FEMALE")
+                    {
+                        e.Graphics.DrawImage(Properties.Resources.female, patientsBoundaries[i]);
+                    }
+                    //draw the text
+                    DrawText(e);
+                }
+                
+            }
+        }
+        //displays all the necessary information about the hospital simulation
+        void DrawText(PaintEventArgs e)
+        {
+            //create a font
+            Font font = new Font("Courier New", 10.0f);
+            //two integers to help create the starting locations of the affliction data text
+            int afflictionRatesX = 10, afflictionRatesY = 300;
+
+            for (int i = 0; i < NUMBER_OF_AFFLICTIONS; i++)
+            {
+                //space out the six blocks of information
+                if (i != 0)
+                {
+                    afflictionRatesY = afflictionRatesY + 60;
+                }
+                //print out all the affliction names and their cure and death rates
+                e.Graphics.DrawString(afflictions[i] + "\r\n" + "Cure rate: " + cureRate[i] + "%" + "\r\n" + "Death rate: " + deathRate[i] + "%" + "\r\n" + "\r\n", font, Brushes.White, afflictionRatesX, afflictionRatesY);
+                //print out the number of people cured and dead from each affliction
+                e.Graphics.DrawString("\r\n" + "Patients cured: " + patientsCured[i] + "\r\n" + "Patients dead: " + patientDeaths[i], font, Brushes.White, afflictionRatesX + 150, afflictionRatesY);
+
+            }
+            //display the affliction that each patient has
+            for (int j = 0; j < numberOfPatients; j++)
+            {
+                e.Graphics.DrawString(afflictions[patientAfflictions[j]], font, Brushes.White, bedsLocations[j].X, bedsLocations[j].Y - 20);
+            }
+            //print out the most and least numerous afflictions
+            e.Graphics.DrawString("Most numerous affliction: " + afflictions[mostNumerousAffliction] + "\r\n" + "\r\n" + "Least numerous affliction: " + afflictions[leastNumerousAffliction], font, Brushes.White, 400, 300);
+
+        }
+        private void tmrFrameRate_Tick(object sender, EventArgs e)
+        {     
+            //if the game is active, let the timer increase by 1 per second
+            if (gameState == GAME_RUNNING)
+            {
+                //determine the most and least numerous affliction
+                RankAfflictions();
+                //add three patients
+                for (int i = 0; i < 3; i++)
+                {
+                    AddPatient();
+
+                }
+                //check if a patient died or got cured
+                CheckPatientStatus();
+                      
+                timer++;                
+            }
+            //if the timer reaches 60, resize the beds to 20
+            if (timer == 60)
+            {
+                numberOfBeds = 20;
+
+                bedsLocations = new Point[numberOfBeds];
+                bedsBoundaries = new Rectangle[numberOfBeds];
+                
+            }
+            //if the timer reaches 120 seconds, resize the beds to 15
+            else if (timer >= 120)
+            {
+                numberOfBeds = 15;
+
+                bedsLocations = new Point[numberOfBeds];
+                bedsBoundaries = new Rectangle[numberOfBeds];
+                
+                //if the number of patients exceed number of beds.
+                if (numberOfPatients > numberOfBeds)
+                {
+                    //counts upwards until number of patients equal number of beds
+                    for (int i = 0; numberOfPatients == numberOfBeds; i++)
+                    {
+                        //stores highest cure chance
+                        int bestCureChance = 0;
+                        //stores the patient that must be removed
+                        int removeHealthyPatient = 0;
+                        //Goes through all of the Patients
+                        for (int x = 0; x == 5; x++)
+                        {
+                            //If the values of the patient cure rates array are higher than than the cure rate
+                            // of the current patient with the highest cure rate...
+                            if (cureRate[patientAfflictions[x]] > bestCureChance)
+                            {
+                                //the cure rate of that patient will be the highest cure rate
+                                bestCureChance = cureRate[patientAfflictions[x]];
+                                //marks the patient to be removed as the one with the highest cure rate
+                                removeHealthyPatient = x;
+                            }
+                        }
+                        //number of patients cured from that affliction goes up by 1 because the patient was cured
+                        patientsCured[patientAfflictions[removeHealthyPatient]]++;
+                        //identifies the patient that must be removed
+                        removePatient = removeHealthyPatient;
+                        //remove patient
+                        RemovePatient();
+                    }
+                    
+                }
+                
+
+
+            }
+            //dont let any of the 6 cure rates exceed 50 (%)
+            for (int i = 0; i < NUMBER_OF_AFFLICTIONS; i++)
+            {
+                if (cureRate[i] > 50)
+                {
+                    cureRate[i] = 50;
+                }
+            }
+            //dont let any of the 6 death rates fall below 3 (%)
+            for (int i = 0; i < NUMBER_OF_AFFLICTIONS; i++)
+            {
+                if (deathRate[i] < 3)
+                {
+                    deathRate[i] = 3;
+                }
+            }
+            
+            Refresh();
+        }
+        //check if a patient dies or gets cured
+        void CheckPatientStatus()
+        {
+            //every second, go through every patient in the hospital and determine 
+            //if the die, get cured, or do neither.
+            for (int i = 0; i < numberOfPatients; i++)
+            {
+                randomNumber = numberGenerator.Next(0, 101);
+
+                //if the random number is between 0 and the death rate for that affliction,
+                //remove the patient from the hospital and increase the number of deaths for
+                //that affliction by 1
+                if (randomNumber <= deathRate[patientAfflictions[i]])
+                {
+                    //designates the patient to be removed as the one that just died
+                    removePatient = i;
+
+                    patientDeaths[patientAfflictions[i]]++;
+                    //the number of patients current afflicted by this disease is decreased by 1 (because the patient died)
+                    patientsAfflicted[patientAfflictions[i]]--;
+
+                    //remove patient from hospital
+                    RemovePatient();
+                }
+                //if the random number is between the death rate for that affliction + 1, and the cure rate for that disease,
+                //remove the patient from the hospital, increase the patients cured for that disease by 1, and increase
+                //the counter that changes cure and death rates by 1
+                else if (randomNumber > deathRate[patientAfflictions[i]] && randomNumber < deathRate[patientAfflictions[i]] + cureRate[patientAfflictions[i]])
+                {
+                    //designates the patient to be removed as the one that just got cured
+                    removePatient = i;
+
+                    patientsCured[patientAfflictions[i]]++;
+                    patientsCuredCounter[patientAfflictions[i]]++;
+
+                    //the number of patients current afflicted by this disease is decreased by 1 (because the patient was cured)
+                    patientsAfflicted[patientAfflictions[i]]--;
+
+                    
+
+                    //if 10 patients of a disease have been cured, increase the cure rate by 1 and decrease the death rate by 1
+                    if (patientsCuredCounter[patientAfflictions[i]] == 10)
+                    {
+                        cureRate[patientAfflictions[i]]++;
+                        deathRate[patientAfflictions[i]]--;
+
+                        //reset the counter to 0
+                        patientsCuredCounter[patientAfflictions[i]] = 0;
+                    }
+                    //remove patient from hospital
+                    RemovePatient();
+                }
+            }
+            
+        }
+        //determines what the most and least numerous diseases are
+        void RankAfflictions()
+        {
+            for (int i = 0; i < NUMBER_OF_AFFLICTIONS; i++)
+            {
+                //if the number of afflicted patients of an affliction exceed the previous highest amount
+                //of afflicted patients, the disease with the most afflicted patients becomes the most numerous disease
+                if (patientsAfflicted[i] > patientsAfflicted[mostNumerousAffliction])
+                {
+                    mostNumerousAffliction = i;
+                }
+
+                //if the number of afflicted patients of an affliction is lower than the previous lowest amount
+                //of afflicted patients, the disease with the least afflicted patients becomes the least numerous disease
+                if (patientsAfflicted[i] < patientsAfflicted[leastNumerousAffliction])
+                {
+                    leastNumerousAffliction = i;
+                }
+            }
+        }
+        private void Form1_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            Application.Exit();
+        }
+
+        
+    }
+}
